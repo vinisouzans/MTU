@@ -8,15 +8,19 @@ namespace MTU.Data
         public DbSet<Moto> Motos { get; set; }
         public DbSet<Entregador> Entregadores { get; set; }
         public DbSet<Locacao> Locacoes { get; set; }
+        public DbSet<Usuario> Usuarios { get; set; }
+
 
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            // Moto
             modelBuilder.Entity<Moto>()
                 .HasIndex(m => m.Placa)
                 .IsUnique();
 
+            // Entregador
             modelBuilder.Entity<Entregador>()
                 .HasIndex(e => e.Cnpj)
                 .IsUnique();
@@ -24,6 +28,19 @@ namespace MTU.Data
             modelBuilder.Entity<Entregador>()
                 .HasIndex(e => e.NumeroCNH)
                 .IsUnique();
+
+            // Usuário/Admin
+            modelBuilder.Entity<Usuario>()
+                .HasIndex(u => u.Email)
+                .IsUnique();
+
+            modelBuilder.Entity<Usuario>()
+                .Property(u => u.SenhaHash)
+                .IsRequired();
+
+            modelBuilder.Entity<Usuario>()
+                .Property(u => u.EhAdmin)
+                .HasDefaultValue(false);
         }
     }
 }
