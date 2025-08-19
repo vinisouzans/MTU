@@ -1,0 +1,6 @@
+@MTU_HostAddress = http://localhost:5020
+
+GET {{MTU_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
