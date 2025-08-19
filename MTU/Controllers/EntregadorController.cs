@@ -11,10 +11,12 @@ namespace MTU.Controllers
     public class EntregadorController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly IWebHostEnvironment _env;
 
-        public EntregadorController(AppDbContext context)
+        public EntregadorController(AppDbContext context, IWebHostEnvironment env)
         {
             _context = context;
+            _env = env;
         }
 
         [HttpPost]
@@ -64,23 +66,24 @@ namespace MTU.Controllers
                 Cnpj = e.Cnpj,
                 NumeroCNH = e.NumeroCNH,
                 TipoCNH = e.TipoCNH,
-                CaminhoImagemCNH = e.CaminhoImagemCNH
+                CaminhoImagemCNH = GerarUrlAbsoluta(e.CaminhoImagemCNH)
             };
         }
 
         [HttpGet]
         public async Task<ActionResult<List<EntregadorResponseDTO>>> GetEntregadores()
         {
-            return await _context.Entregadores
-                .Select(e => new EntregadorResponseDTO
-                {
-                    Id = e.Id,
-                    Nome = e.Nome,
-                    Cnpj = e.Cnpj,
-                    NumeroCNH = e.NumeroCNH,
-                    TipoCNH = e.TipoCNH,
-                    CaminhoImagemCNH = e.CaminhoImagemCNH
-                }).ToListAsync();
+            var entregadores = await _context.Entregadores.ToListAsync();
+
+            return entregadores.Select(e => new EntregadorResponseDTO
+            {
+                Id = e.Id,
+                Nome = e.Nome,
+                Cnpj = e.Cnpj,
+                NumeroCNH = e.NumeroCNH,
+                TipoCNH = e.TipoCNH,
+                CaminhoImagemCNH = GerarUrlAbsoluta(e.CaminhoImagemCNH)
+            }).ToList();
         }
 
         [HttpPut("{id}")]
@@ -112,8 +115,58 @@ namespace MTU.Controllers
                 Cnpj = entregador.Cnpj,
                 NumeroCNH = entregador.NumeroCNH,
                 TipoCNH = entregador.TipoCNH,
-                CaminhoImagemCNH = entregador.CaminhoImagemCNH
+                CaminhoImagemCNH = GerarUrlAbsoluta(entregador.CaminhoImagemCNH)
             };
+        }
+
+        [HttpPost("{id}/upload-cnh")]
+        public async Task<IActionResult> UploadCNH(Guid id, IFormFile arquivo)
+        {
+            var entregador = await _context.Entregadores.FindAsync(id);
+            if (entregador == null)
+                return NotFound("Entregador não encontrado");
+
+            if (arquivo == null || arquivo.Length == 0)
+                return BadRequest("Arquivo inválido");
+
+            var extensao = Path.GetExtension(arquivo.FileName).ToLowerInvariant();
+            if (extensao != ".png" && extensao != ".bmp")
+                return BadRequest("Formato inválido. Apenas PNG ou BMP são aceitos.");
+
+            // Criar diretório caso não exista
+            var pastaUploads = Path.Combine(_env.WebRootPath ?? "wwwroot", "uploads", "cnhs");
+            if (!Directory.Exists(pastaUploads))
+                Directory.CreateDirectory(pastaUploads);
+
+            // Nome do arquivo: {id}{extensão}
+            var nomeArquivo = $"{id}{extensao}";
+            var caminhoArquivo = Path.Combine(pastaUploads, nomeArquivo);
+
+            // Salvar no disco
+            using (var stream = new FileStream(caminhoArquivo, FileMode.Create))
+            {
+                await arquivo.CopyToAsync(stream);
+            }
+
+            // Atualizar o caminho no banco
+            entregador.CaminhoImagemCNH = $"/uploads/cnhs/{nomeArquivo}";
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                mensagem = "Upload realizado com sucesso!",
+                caminho = GerarUrlAbsoluta(entregador.CaminhoImagemCNH)
+            });
+        }
+
+        private string GerarUrlAbsoluta(string caminhoRelativo)
+        {
+            if (string.IsNullOrEmpty(caminhoRelativo))
+                return null;
+
+            var request = HttpContext.Request;
+            var baseUrl = $"{request.Scheme}://{request.Host}";
+            return $"{baseUrl}{caminhoRelativo}";
         }
 
 

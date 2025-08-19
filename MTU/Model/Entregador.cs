@@ -35,7 +35,7 @@ namespace MTU.Model
 
         public static bool TipoCNHValido(string tipoCNH)
         {
-            return tipoCNH == "A" || tipoCNH == "B" || tipoCNH == "A+B";
+            return tipoCNH == "A" || tipoCNH == "B" || tipoCNH == "AB";
         }
     }
 
