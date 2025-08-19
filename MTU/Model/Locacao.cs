@@ -75,7 +75,7 @@ namespace MTU.Model
         
         public static bool EntregadorPodeAlugar(string tipoCNH)
         {
-            return tipoCNH == "A" || tipoCNH == "A+B";
+            return tipoCNH == "A" || tipoCNH == "AB";
         }
     }
 
