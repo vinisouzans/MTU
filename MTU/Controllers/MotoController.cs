@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using MTU.Data;
 using MTU.DTO.Moto;
 using MTU.Model;
+using MTU.Events;
 
 namespace MTU.Controllers
 {
@@ -22,6 +23,12 @@ namespace MTU.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<MotoResponseDTO>> CriarMoto(MotoCreateDTO dto)
         {
+            var existe = await _context.Motos.AnyAsync(m => m.Placa == dto.Placa);
+            if (existe)
+            {
+                return BadRequest(new { mensagem = "Já existe uma moto cadastrada com essa placa." });
+            }
+
             var moto = new Moto
             {
                 Ano = dto.Ano,
@@ -32,13 +39,17 @@ namespace MTU.Controllers
             _context.Motos.Add(moto);
             await _context.SaveChangesAsync();
             
-            var evento = moto.GerarEvento();
-            
-            if (moto.PrecisaConsumidorEspecial())
+            var evento = new MotoCadastradaEvent
             {
-                // Armazenar ou processar moto de 2024
-            }
-
+                Id = moto.Id,
+                Ano = moto.Ano,
+                Modelo = moto.Modelo,
+                Placa = moto.Placa
+            };
+            
+            var publisher = new RabbitMqPublisher();
+            publisher.Publicar("motos_cadastradas", evento);
+            
             return CreatedAtAction(nameof(GetMoto), new { id = moto.Id }, new MotoResponseDTO
             {
                 Id = moto.Id,
@@ -77,8 +88,7 @@ namespace MTU.Controllers
             var moto = await _context.Motos.FindAsync(id);
             if (moto == null)
                 return NotFound("Moto não encontrada");
-
-            // Verifica se há locações vinculadas
+            
             var possuiLocacoes = await _context.Locacoes.AnyAsync(l => l.MotoId == id);
             if (possuiLocacoes)
                 return BadRequest("Não é possível remover a moto pois existem locações registradas");
