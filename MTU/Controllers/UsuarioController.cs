@@ -1,10 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using BCrypt.Net;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using MTU.Data;
 using MTU.DTO.Usuario;
 using MTU.Model;
-using Microsoft.EntityFrameworkCore;
-using BCrypt.Net;
 using MTU.Services;
+using MTU.Services.Interfaces;
 
 
 namespace MTU.Controllers
@@ -13,48 +14,39 @@ namespace MTU.Controllers
     [Route("api/usuarios")]
     public class UsuarioController : ControllerBase
     {
-        private readonly AppDbContext _context;
-        private readonly IConfiguration _config;
+        private readonly IUsuarioService _service;
 
-        public UsuarioController(AppDbContext context, IConfiguration config)
+        public UsuarioController(IUsuarioService service)
         {
-            _context = context;
-            _config = config;
+            _service = service;
         }
 
         [HttpPost("register")]
         public async Task<ActionResult<UsuarioResponseDTO>> Register(UsuarioCreateDTO dto)
         {
-            var usuario = new Usuario
+            try
             {
-                Nome = dto.Nome,
-                Email = dto.Email,
-                SenhaHash = BCrypt.Net.BCrypt.HashPassword(dto.Senha),
-                EhAdmin = dto.EhAdmin
-            };
-
-            _context.Usuarios.Add(usuario);
-            await _context.SaveChangesAsync();
-
-            return new UsuarioResponseDTO
+                var usuario = await _service.RegistrarAsync(dto);
+                return Ok(usuario);
+            }
+            catch (InvalidOperationException ex)
             {
-                Id = usuario.Id,
-                Nome = usuario.Nome,
-                Email = usuario.Email,
-                EhAdmin = usuario.EhAdmin
-            };
+                return BadRequest(new { mensagem = ex.Message });
+            }
         }
 
         [HttpPost("login")]
         public async Task<ActionResult<string>> Login(UsuarioLoginDTO dto)
         {
-            var usuario = await _context.Usuarios.SingleOrDefaultAsync(u => u.Email == dto.Email);
-            if (usuario == null || !BCrypt.Net.BCrypt.Verify(dto.Senha, usuario.SenhaHash))
-                return Unauthorized("Usuário ou senha inválidos");
-
-            // Gerar JWT
-            var token = JwtService.GerarToken(usuario, _config);
-            return Ok(token);
+            try
+            {
+                var token = await _service.LoginAsync(dto);
+                return Ok(token);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { mensagem = ex.Message });
+            }
         }
     }
 

@@ -4,6 +4,7 @@ using Microsoft.IdentityModel.Tokens;
 using MTU.Data;
 using MTU.Services;
 using System.Text;
+using MTU.Services.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -76,6 +77,10 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+builder.Services.AddScoped<IEntregadorService, EntregadorService>();
+builder.Services.AddScoped<IMotoService, MotoService>();
+builder.Services.AddScoped<IUsuarioService, UsuarioService>();
+builder.Services.AddScoped<ILocacaoService, LocacaoService>();
 builder.Services.AddHostedService<MotoCadastradaConsumer>();
 
 builder.Services.AddAuthorization();
