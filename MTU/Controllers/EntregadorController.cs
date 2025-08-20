@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using MTU.Data;
 using MTU.DTO.Entregador;
 using MTU.Model;
+using MTU.Services.Interfaces;
 
 namespace MTU.Controllers
 {
@@ -10,166 +11,86 @@ namespace MTU.Controllers
     [Route("api/entregadores")]
     public class EntregadorController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly IEntregadorService _service;
         private readonly IWebHostEnvironment _env;
 
-        public EntregadorController(AppDbContext context, IWebHostEnvironment env)
+        public EntregadorController(IEntregadorService service, IWebHostEnvironment env)
         {
-            _context = context;
+            _service = service;
             _env = env;
         }
 
         [HttpPost]
         public async Task<ActionResult<EntregadorResponseDTO>> CriarEntregador(EntregadorCreateDTO dto)
         {
-            if (!Entregador.TipoCNHValido(dto.TipoCNH))
-                return BadRequest("Tipo CNH inválido");
-
-            if (_context.Entregadores.Any(e => e.Cnpj == dto.Cnpj))
-                return BadRequest("CNPJ já cadastrado");
-
-            if (_context.Entregadores.Any(e => e.NumeroCNH == dto.NumeroCNH))
-                return BadRequest("CNH já cadastrada");
-
-            var entregador = new Entregador
+            try
             {
-                Nome = dto.Nome,
-                Cnpj = dto.Cnpj,
-                DataNascimento = dto.DataNascimento,
-                NumeroCNH = dto.NumeroCNH,
-                TipoCNH = dto.TipoCNH
-            };
-
-            _context.Entregadores.Add(entregador);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetEntregador), new { id = entregador.Id }, new EntregadorResponseDTO
+                var result = await _service.CriarEntregadorAsync(dto);
+                return CreatedAtAction(nameof(GetEntregador), new { id = result.Id }, result);
+            }
+            catch (ArgumentException ex)
             {
-                Id = entregador.Id,
-                Nome = entregador.Nome,
-                Cnpj = entregador.Cnpj,
-                NumeroCNH = entregador.NumeroCNH,
-                TipoCNH = entregador.TipoCNH
-            });
-        }
-
-        [HttpGet("{id}")]
-        public async Task<ActionResult<EntregadorResponseDTO>> GetEntregador(Guid id)
-        {
-            var e = await _context.Entregadores.FindAsync(id);
-            if (e == null) return NotFound();
-
-            return new EntregadorResponseDTO
-            {
-                Id = e.Id,
-                Nome = e.Nome,
-                Cnpj = e.Cnpj,
-                NumeroCNH = e.NumeroCNH,
-                TipoCNH = e.TipoCNH,
-                CaminhoImagemCNH = GerarUrlAbsoluta(e.CaminhoImagemCNH)
-            };
-        }
-
-        [HttpGet]
-        public async Task<ActionResult<List<EntregadorResponseDTO>>> GetEntregadores()
-        {
-            var entregadores = await _context.Entregadores.ToListAsync();
-
-            return entregadores.Select(e => new EntregadorResponseDTO
-            {
-                Id = e.Id,
-                Nome = e.Nome,
-                Cnpj = e.Cnpj,
-                NumeroCNH = e.NumeroCNH,
-                TipoCNH = e.TipoCNH,
-                CaminhoImagemCNH = GerarUrlAbsoluta(e.CaminhoImagemCNH)
-            }).ToList();
+                return BadRequest(ex.Message);
+            }
         }
 
         [HttpPut("{id}")]
         public async Task<ActionResult<EntregadorResponseDTO>> AtualizarEntregador(Guid id, EntregadorUpdateDTO dto)
         {
-            var entregador = await _context.Entregadores.FindAsync(id);
-            if (entregador == null) return NotFound();
-
-            if (!Entregador.TipoCNHValido(dto.TipoCNH))
-                return BadRequest("Tipo CNH inválido");
-            
-            if (_context.Entregadores.Any(e => e.Cnpj == dto.Cnpj && e.Id != id))
-                return BadRequest("CNPJ já cadastrado");
-            
-            if (_context.Entregadores.Any(e => e.NumeroCNH == dto.NumeroCNH && e.Id != id))
-                return BadRequest("CNH já cadastrada");
-            
-            entregador.Nome = dto.Nome;
-            entregador.Cnpj = dto.Cnpj;
-            entregador.NumeroCNH = dto.NumeroCNH;
-            entregador.TipoCNH = dto.TipoCNH;
-
-            await _context.SaveChangesAsync();
-
-            return new EntregadorResponseDTO
+            try
             {
-                Id = entregador.Id,
-                Nome = entregador.Nome,
-                Cnpj = entregador.Cnpj,
-                NumeroCNH = entregador.NumeroCNH,
-                TipoCNH = entregador.TipoCNH,
-                CaminhoImagemCNH = GerarUrlAbsoluta(entregador.CaminhoImagemCNH)
-            };
+                var result = await _service.AtualizarEntregadorAsync(id, dto);
+                return Ok(result);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+        }
+
+        [HttpGet("{id}")]
+        public async Task<ActionResult<EntregadorResponseDTO>> GetEntregador(Guid id)
+        {
+            try
+            {
+                var result = await _service.ObterEntregadorAsync(id);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+        }
+
+        [HttpGet]
+        public async Task<ActionResult<List<EntregadorResponseDTO>>> GetEntregadores()
+        {
+            var result = await _service.ObterTodosEntregadoresAsync();
+            return Ok(result);
         }
 
         [HttpPost("{id}/upload-cnh")]
         public async Task<IActionResult> UploadCNH(Guid id, IFormFile arquivo)
         {
-            var entregador = await _context.Entregadores.FindAsync(id);
-            if (entregador == null)
-                return NotFound("Entregador não encontrado");
-
-            if (arquivo == null || arquivo.Length == 0)
-                return BadRequest("Arquivo inválido");
-
-            var extensao = Path.GetExtension(arquivo.FileName).ToLowerInvariant();
-            if (extensao != ".png" && extensao != ".bmp")
-                return BadRequest("Formato inválido. Apenas PNG ou BMP são aceitos.");
-
-            // Criar diretório caso não exista
-            var pastaUploads = Path.Combine(_env.WebRootPath ?? "wwwroot", "uploads", "cnhs");
-            if (!Directory.Exists(pastaUploads))
-                Directory.CreateDirectory(pastaUploads);
-
-            // Nome do arquivo: {id}{extensão}
-            var nomeArquivo = $"{id}{extensao}";
-            var caminhoArquivo = Path.Combine(pastaUploads, nomeArquivo);
-
-            // Salvar no disco
-            using (var stream = new FileStream(caminhoArquivo, FileMode.Create))
+            try
             {
-                await arquivo.CopyToAsync(stream);
+                var caminho = await _service.UploadCNHAsync(id, arquivo, _env.WebRootPath, Request);
+                return Ok(new { mensagem = "Upload realizado com sucesso!", caminho });
             }
-
-            // Atualizar o caminho no banco
-            entregador.CaminhoImagemCNH = $"/uploads/cnhs/{nomeArquivo}";
-            await _context.SaveChangesAsync();
-
-            return Ok(new
+            catch (ArgumentException ex)
             {
-                mensagem = "Upload realizado com sucesso!",
-                caminho = GerarUrlAbsoluta(entregador.CaminhoImagemCNH)
-            });
+                return BadRequest(ex.Message);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
         }
-
-        private string GerarUrlAbsoluta(string caminhoRelativo)
-        {
-            if (string.IsNullOrEmpty(caminhoRelativo))
-                return null;
-
-            var request = HttpContext.Request;
-            var baseUrl = $"{request.Scheme}://{request.Host}";
-            return $"{baseUrl}{caminhoRelativo}";
-        }
-
-
     }
+
 
 }
