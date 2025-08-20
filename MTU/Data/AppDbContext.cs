@@ -9,6 +9,7 @@ namespace MTU.Data
         public DbSet<Entregador> Entregadores { get; set; }
         public DbSet<Locacao> Locacoes { get; set; }
         public DbSet<Usuario> Usuarios { get; set; }
+        public DbSet<NotificacaoMoto> NotificacoesMotos { get; set; }
 
 
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }

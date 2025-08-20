@@ -1,8 +1,9 @@
-using Microsoft.EntityFrameworkCore;
-using MTU.Data;
-using Microsoft.IdentityModel.Tokens;
-using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using MTU.Data;
+using MTU.Services;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -75,6 +76,7 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+builder.Services.AddHostedService<MotoCadastradaConsumer>();
 
 builder.Services.AddAuthorization();
 
