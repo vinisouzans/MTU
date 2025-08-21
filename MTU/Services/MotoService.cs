@@ -10,10 +10,12 @@ namespace MTU.Services
     public class MotoService : IMotoService
     {
         private readonly AppDbContext _context;
+        private readonly IMotoPublisher _publisher;
 
-        public MotoService(AppDbContext context)
+        public MotoService(AppDbContext context, IMotoPublisher publisher)
         {
             _context = context;
+            _publisher = publisher;
         }
 
         public async Task<MotoResponseDTO> CriarMotoAsync(MotoCreateDTO dto)
@@ -31,8 +33,7 @@ namespace MTU.Services
 
             _context.Motos.Add(moto);
             await _context.SaveChangesAsync();
-
-            // Evento
+            
             var evento = new MotoCadastradaEvent
             {
                 Id = moto.Id,
@@ -40,8 +41,8 @@ namespace MTU.Services
                 Modelo = moto.Modelo,
                 Placa = moto.Placa
             };
-            var publisher = new RabbitMqPublisher();
-            publisher.Publicar("motos_cadastradas", evento);
+
+            _publisher.Publicar("motos_cadastradas", evento);
 
             return new MotoResponseDTO
             {

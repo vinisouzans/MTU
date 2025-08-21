@@ -82,6 +82,7 @@ builder.Services.AddScoped<IMotoService, MotoService>();
 builder.Services.AddScoped<IUsuarioService, UsuarioService>();
 builder.Services.AddScoped<ILocacaoService, LocacaoService>();
 builder.Services.AddHostedService<MotoCadastradaConsumer>();
+builder.Services.AddScoped<MTU.Services.Interfaces.IMotoPublisher, MTU.Services.RabbitMqPublisher>();
 
 builder.Services.AddAuthorization();
 
