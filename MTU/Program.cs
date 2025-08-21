@@ -3,10 +3,48 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using MTU.Data;
 using MTU.Services;
-using System.Text;
 using MTU.Services.Interfaces;
+using Polly;
+using RabbitMQ.Client;
+using RabbitMQ.Client.Exceptions;
+using System.Net.Sockets;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddSingleton<IConnection>(serviceProvider =>
+{
+    var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+    var factory = new ConnectionFactory
+    {
+        HostName = configuration["RabbitMQ:HostName"],
+        UserName = configuration["RabbitMQ:UserName"],
+        Password = configuration["RabbitMQ:Password"],
+        DispatchConsumersAsync = true,
+        AutomaticRecoveryEnabled = true,
+        NetworkRecoveryInterval = TimeSpan.FromSeconds(10)
+    };
+
+    var policy = Policy.Handle<BrokerUnreachableException>()
+                      .Or<SocketException>()
+                      .WaitAndRetry(6, retryAttempt =>
+                          TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)));
+
+    return policy.Execute(() => factory.CreateConnection());
+});
+
+builder.Services.AddSingleton<IConnectionFactory>(serviceProvider =>
+{
+    var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+    return new ConnectionFactory
+    {
+        HostName = configuration["RabbitMQ:HostName"],
+        UserName = configuration["RabbitMQ:UserName"],
+        Password = configuration["RabbitMQ:Password"],
+        DispatchConsumersAsync = true,
+        AutomaticRecoveryEnabled = true
+    };
+});
 
 // Adicione serviços de autenticação JWT
 builder.Services.AddAuthentication(options =>
@@ -43,7 +81,6 @@ builder.Services.AddAuthentication(options =>
             return context.Response.WriteAsync("{\"erro\":\"Você não tem permissão para acessar este recurso.\"}");
         }
     };
-
 });
 
 builder.Services.AddSwaggerGen(c =>
@@ -95,6 +132,21 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<AppDbContext>();
+        context.Database.Migrate();
+        Console.WriteLine("Migrações aplicadas com sucesso!");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Erro ao aplicar migrações: {ex.Message}");
+    }
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
