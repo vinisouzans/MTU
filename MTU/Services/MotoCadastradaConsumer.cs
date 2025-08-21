@@ -12,22 +12,13 @@ namespace MTU.Services
     public class MotoCadastradaConsumer : BackgroundService
     {
         private readonly IServiceProvider _serviceProvider;
-        private IConnection _connection;
+        private readonly IConnection _connection;
         private IModel _channel;
-
-        public MotoCadastradaConsumer(IServiceProvider serviceProvider)
+        
+        public MotoCadastradaConsumer(IServiceProvider serviceProvider, IConnection connection)
         {
             _serviceProvider = serviceProvider;
-
-            var factory = new ConnectionFactory()
-            {
-                HostName = "localhost",
-                UserName = "guest",
-                Password = "guest",
-                ClientProvidedName = "mtu-consumer-connection"
-            };
-
-            _connection = factory.CreateConnection();
+            _connection = connection;
             _channel = _connection.CreateModel();
 
             _channel.QueueDeclare(
@@ -41,7 +32,7 @@ namespace MTU.Services
 
         protected override Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            var consumer = new EventingBasicConsumer(_channel);
+            var consumer = new AsyncEventingBasicConsumer(_channel);
 
             consumer.Received += async (model, ea) =>
             {
@@ -51,10 +42,10 @@ namespace MTU.Services
                 var evento = JsonSerializer.Deserialize<MotoCadastradaEvent>(mensagem);
 
                 if (evento != null && evento.Ano == 2024)
-                {                    
+                {
                     using var scope = _serviceProvider.CreateScope();
                     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                    
+
                     var notificacao = new NotificacaoMoto
                     {
                         MotoId = evento.Id,
@@ -82,8 +73,8 @@ namespace MTU.Services
 
         public override void Dispose()
         {
-            _channel.Close();
-            _connection.Close();
+            _channel?.Close();
+            _connection?.Close();
             base.Dispose();
         }
     }
