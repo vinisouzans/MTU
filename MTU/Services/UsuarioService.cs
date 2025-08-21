@@ -19,8 +19,7 @@ namespace MTU.Services
         }
 
         public async Task<UsuarioResponseDTO> RegistrarAsync(UsuarioCreateDTO dto)
-        {
-            // Verificar se o email já existe
+        {            
             var emailExistente = await _context.Usuarios.AnyAsync(u => u.Email == dto.Email);
             if (emailExistente)
                 throw new InvalidOperationException("Email já cadastrado");
@@ -50,8 +49,7 @@ namespace MTU.Services
             var usuario = await _context.Usuarios.SingleOrDefaultAsync(u => u.Email == dto.Email);
             if (usuario == null || !BCrypt.Net.BCrypt.Verify(dto.Senha, usuario.SenhaHash))
                 throw new UnauthorizedAccessException("Usuário ou senha inválidos");
-
-            // Gerar JWT
+            
             return JwtService.GerarToken(usuario, _config);
         }
     }
