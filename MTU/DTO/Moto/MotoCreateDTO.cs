@@ -11,8 +11,9 @@ namespace MTU.DTO.Moto
         [MaxLength(100)]
         public string Modelo { get; set; }
 
-        [Required]
-        [MaxLength(10)]
-        public string Placa { get; set; }
+        [Required(ErrorMessage = "A placa é obrigatória.")]
+        [RegularExpression(@"^[A-Z]{3}[0-9][A-Z][0-9]{2}$",
+            ErrorMessage = "Placa inválida. Exemplo de placa válida (ex: BRA1A23).")]
+        public string Placa { get; set; } = string.Empty;
     }
 }
