@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using MTU.Data;
@@ -95,7 +96,7 @@ builder.Services.AddSwaggerGen(c =>
         Scheme = "Bearer",
         BearerFormat = "JWT",
         In = Microsoft.OpenApi.Models.ParameterLocation.Header,
-        Description = "Coloque 'Bearer' seguido do token JWT"
+        Description = "Cole seu token JWT"
     });
 
     c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
@@ -120,6 +121,9 @@ builder.Services.AddScoped<IUsuarioService, UsuarioService>();
 builder.Services.AddScoped<ILocacaoService, LocacaoService>();
 builder.Services.AddHostedService<MotoCadastradaConsumer>();
 builder.Services.AddScoped<MTU.Services.Interfaces.IMotoPublisher, MTU.Services.RabbitMqPublisher>();
+builder.Services.AddScoped<IEntregaService, EntregaService>();
+builder.Services.AddScoped<IClienteService, ClienteService>();
+builder.Services.AddScoped<IPedidoService, PedidoService>();
 
 builder.Services.AddAuthorization();
 
@@ -153,7 +157,19 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+    app.UseExceptionHandler("/error");
+    app.UseHsts();
 }
+
+app.Map("/error", (HttpContext context) =>
+{
+    var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
+    return Results.Problem(
+        title: "Erro inesperado",
+        detail: exception?.Message,
+        statusCode: exception is ArgumentException ? 400 : 500
+    );
+});
 
 app.UseStaticFiles();
 app.UseHttpsRedirection();
