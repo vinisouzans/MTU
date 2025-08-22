@@ -24,6 +24,11 @@ namespace MTU.Controllers
         [HttpPost("register")]
         public async Task<ActionResult<UsuarioResponseDTO>> Register(UsuarioCreateDTO dto)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
             try
             {
                 var usuario = await _service.RegistrarAsync(dto);

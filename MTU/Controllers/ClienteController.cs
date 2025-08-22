@@ -18,6 +18,10 @@ namespace MTU.Controllers
         [HttpPost]
         public async Task<IActionResult> CriarCliente([FromBody] ClienteCreateDTO dto)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
             try
             {
                 var cliente = await _clienteService.CriarClienteAsync(dto);
@@ -67,6 +71,10 @@ namespace MTU.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> AtualizarCliente(Guid id, [FromBody] ClienteUpdateDTO dto)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
             try
             {
                 var cliente = await _clienteService.AtualizarClienteAsync(id, dto);
