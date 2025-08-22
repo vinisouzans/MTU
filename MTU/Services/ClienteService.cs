@@ -1,8 +1,9 @@
-﻿using MTU.Data;
+﻿using Microsoft.EntityFrameworkCore;
+using MTU.Data;
 using MTU.DTO.Cliente;
 using MTU.Model;
 using MTU.Services.Interfaces;
-using Microsoft.EntityFrameworkCore;
+using System.Text.RegularExpressions;
 
 namespace MTU.Services
 {
@@ -17,6 +18,9 @@ namespace MTU.Services
 
         public async Task<ClienteDTO> CriarClienteAsync(ClienteCreateDTO dto)
         {
+            if (!ValidarEmail(dto.Email))
+                throw new InvalidOperationException("Formato de e-mail inválido");
+
             // Verificar se email já existe
             if (await _context.Clientes.AnyAsync(c => c.Email == dto.Email))
                 throw new ArgumentException("Email já cadastrado");
@@ -60,6 +64,9 @@ namespace MTU.Services
             var cliente = await _context.Clientes.FindAsync(id);
             if (cliente == null)
                 throw new ArgumentException("Cliente não encontrado");
+
+            if (!ValidarEmail(dto.Email))
+                throw new InvalidOperationException("Formato de e-mail inválido");
 
             // Verificar se novo email já existe (se foi alterado)
             if (!string.IsNullOrEmpty(dto.Email) && dto.Email != cliente.Email)
@@ -120,6 +127,15 @@ namespace MTU.Services
                 Endereco = cliente.Endereco,
                 DataCadastro = cliente.DataCadastro
             };
+        }
+
+        private bool ValidarEmail(string email)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+                return false;
+
+            var regex = new Regex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$");
+            return regex.IsMatch(email);
         }
     }
 }

@@ -1,9 +1,10 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using MTU.Data;
 using MTU.DTO.Usuario;
 using MTU.Model;
 using MTU.Services.Interfaces;
-using Microsoft.Extensions.Configuration;
+using System.Text.RegularExpressions;
 
 namespace MTU.Services
 {
@@ -19,7 +20,10 @@ namespace MTU.Services
         }
 
         public async Task<UsuarioResponseDTO> RegistrarAsync(UsuarioCreateDTO dto)
-        {            
+        {
+            if (!ValidarEmail(dto.Email))
+                throw new InvalidOperationException("Formato de e-mail inválido");
+
             var emailExistente = await _context.Usuarios.AnyAsync(u => u.Email == dto.Email);
             if (emailExistente)
                 throw new InvalidOperationException("Email já cadastrado");
@@ -51,6 +55,15 @@ namespace MTU.Services
                 throw new UnauthorizedAccessException("Usuário ou senha inválidos");
             
             return JwtService.GerarToken(usuario, _config);
+        }
+
+        private bool ValidarEmail(string email)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+                return false;
+
+            var regex = new Regex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$");
+            return regex.IsMatch(email);
         }
     }
 }

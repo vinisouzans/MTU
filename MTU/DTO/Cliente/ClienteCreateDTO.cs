@@ -9,7 +9,7 @@ namespace MTU.DTO.Cliente
         public string Nome { get; set; } = null!;
 
         [Required]
-        [EmailAddress]
+        [EmailAddress(ErrorMessage = "Formato de e-mail inválido")]
         public string Email { get; set; } = null!;
 
         [Required]
