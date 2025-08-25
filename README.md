@@ -2,7 +2,7 @@
 
 Antes de começar, certifique-se de que sua máquina possui:
 
-    -Docker Desktop instalado e a uma distribuição wsl linux instalada dentro do docker.
+    -Docker Desktop instalado e uma distribuição wsl linux instalada dentro do docker.
 
     -Git instalado (opcional, apenas se preferir clonar via SSH)
 
